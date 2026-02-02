@@ -22,7 +22,7 @@ exports.handler = async (event, context) => {
     
     // Your Azure base URL and SAS key
     const azureBaseUrl = 'https://arvoblobstorage.blob.core.windows.net/explore-by-pgc';
-    const sasKey = process.env.SAS_KEY; // Should be like: si=Read-Access&sv=2022-11-02&sr=c&sig=...
+    const sasKey = process.env.SAS_KEY;
     
     if (!sasKey) {
       return {
@@ -61,23 +61,32 @@ exports.handler = async (event, context) => {
       // Get the directory path for relative URLs
       const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
       
-      // Replace Unity build URLs
+      // Completely replace the SAS key logic with proxy logic
       content = content
+        // Replace the entire SAS key initialization with simple proxy logic
+        .replace(/var sasKey = "";[\s\S]*?initializeUnity\(\);/g, `
+          var sasKey = ""; // Handled by proxy
+          var debugKey = "";
+          
+          console.log("🔐 Starting proxy Unity initialization...");
+          startUnityLoading();
+        `)
+        
         // Replace Build/ URLs in JavaScript
-        .replace(/buildUrl \+ "\/([^"]+)"/g, (match, filename) => {
-          return `"/.netlify/functions/proxy?${dirPath}/Build/${filename}"`;
-        })
+        .replace(/buildUrl \+ "\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
+        .replace(/buildUrl \+ "\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
+        
         // Replace TemplateData/ URLs
-        .replace(/"TemplateData\/([^"]+)"/g, (match, filename) => {
-          return `"/.netlify/functions/proxy?${dirPath}/TemplateData/${filename}"`;
-        })
-        // Replace relative src and href attributes
-        .replace(/(src|href)="([^"]+)"/g, (match, attr, url) => {
-          if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('#') || url.startsWith('/.netlify')) {
-            return match; // Don't modify absolute URLs, data URLs, or already proxied URLs
-          }
-          return `${attr}="/.netlify/functions/proxy?${dirPath}/${url}"`;
-        });
+        .replace(/"TemplateData\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
+        .replace(/"TemplateData\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
+        
+        // Replace favicon and stylesheet URLs
+        .replace(/(src|href)="TemplateData\/([^"]+)"/g, `$1="/.netlify/functions/proxy?${dirPath}/TemplateData/$2"`)
+        
+        // Remove updateResourceUrls function calls
+        .replace(/updateResourceUrls\(\);/g, '// URLs handled by proxy')
+        .replace(/document\.getElementById\('favicon'\)\.href = `TemplateData\/favicon\.ico\$\{sasKey\}`;/g, '// Handled by proxy')
+        .replace(/document\.getElementById\('stylesheet'\)\.href = `TemplateData\/style\.css\$\{sasKey\}`;/g, '// Handled by proxy');
     }
     
     return {
