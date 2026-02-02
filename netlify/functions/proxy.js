@@ -61,32 +61,28 @@ exports.handler = async (event, context) => {
       // Get the directory path for relative URLs
       const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
       
-      // Completely replace the SAS key logic with proxy logic
+      // Replace Unity asset URLs to use proxy, but keep the Unity loading logic intact
       content = content
-        // Replace the entire SAS key initialization with simple proxy logic
-        .replace(/var sasKey = "";[\s\S]*?initializeUnity\(\);/g, `
-          var sasKey = ""; // Handled by proxy
-          var debugKey = "";
-          
-          console.log("🔐 Starting proxy Unity initialization...");
-          startUnityLoading();
-        `)
-        
-        // Replace Build/ URLs in JavaScript
+        // Replace Build/ URLs in JavaScript (with and without sasKey)
         .replace(/buildUrl \+ "\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
         .replace(/buildUrl \+ "\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
         
-        // Replace TemplateData/ URLs
+        // Replace TemplateData/ URLs (with and without sasKey)
         .replace(/"TemplateData\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         .replace(/"TemplateData\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         
-        // Replace favicon and stylesheet URLs
-        .replace(/(src|href)="TemplateData\/([^"]+)"/g, `$1="/.netlify/functions/proxy?${dirPath}/TemplateData/$2"`)
+        // Replace the initial favicon and stylesheet URLs in HTML head
+        .replace(/href="TemplateData\/([^"]+)"/g, `href="/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         
-        // Remove updateResourceUrls function calls
+        // Replace the SAS key initialization to skip the async loading
+        .replace(/initializeUnity\(\);/, 'startUnityLoading(); // Skip async key loading, proxy handles it')
+        
+        // Replace updateResourceUrls calls since proxy handles URLs
         .replace(/updateResourceUrls\(\);/g, '// URLs handled by proxy')
-        .replace(/document\.getElementById\('favicon'\)\.href = `TemplateData\/favicon\.ico\$\{sasKey\}`;/g, '// Handled by proxy')
-        .replace(/document\.getElementById\('stylesheet'\)\.href = `TemplateData\/style\.css\$\{sasKey\}`;/g, '// Handled by proxy');
+        
+        // Replace the SAS key fetching with a simple assignment
+        .replace(/const keysLoaded = await loadKeys\(\);/, 'const keysLoaded = true; // Proxy handles keys')
+        .replace(/if \(keysLoaded\) \{[\s\S]*?\} else \{[\s\S]*?\}[\s\S]*?startUnityLoading\(\);/, 'startUnityLoading(); // Proxy handles everything');
     }
     
     return {
