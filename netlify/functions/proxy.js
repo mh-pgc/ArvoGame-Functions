@@ -54,6 +54,7 @@ exports.handler = async (event, context) => {
     
     // Get content and content type
     let contentType = response.headers.get('content-type');
+    let contentEncoding = response.headers.get('content-encoding');
     
     // If no content type from Azure, determine it from file extension
     if (!contentType) {
@@ -64,9 +65,15 @@ exports.handler = async (event, context) => {
       else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
       else if (filePath.endsWith('.ico')) contentType = 'image/x-icon';
       else if (filePath.endsWith('.wasm')) contentType = 'application/wasm';
-      else if (filePath.endsWith('.br')) contentType = 'application/octet-stream';
-      else if (filePath.endsWith('.data')) contentType = 'application/octet-stream';
       else if (filePath.endsWith('.ttf')) contentType = 'font/ttf';
+      else if (filePath.endsWith('.br')) {
+        // For .br files, determine the original content type
+        if (filePath.includes('.js.br')) contentType = 'application/javascript';
+        else if (filePath.includes('.wasm.br')) contentType = 'application/wasm';
+        else if (filePath.includes('.data.br')) contentType = 'application/octet-stream';
+        else contentType = 'application/octet-stream';
+        contentEncoding = 'br'; // Set Brotli encoding
+      }
       else contentType = 'application/octet-stream';
     }
     
@@ -74,8 +81,8 @@ exports.handler = async (event, context) => {
     let content;
     let isBase64 = false;
     
-    if (contentType.includes('text/') || contentType.includes('application/javascript')) {
-      // Handle text files
+    if (contentType.includes('text/') || (contentType.includes('application/javascript') && !filePath.endsWith('.br'))) {
+      // Handle text files (but not compressed JS files)
       content = await response.text();
     } else {
       // Handle binary files (images, wasm, compressed files, etc.)
@@ -113,15 +120,23 @@ exports.handler = async (event, context) => {
         .replace(/if \(keysLoaded\) \{[\s\S]*?\} else \{[\s\S]*?\}[\s\S]*?startUnityLoading\(\);/, 'startUnityLoading(); // Proxy handles everything');
     }
     
+    // Build response headers
+    const responseHeaders = {
+      'Content-Type': contentType,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Cache-Control': contentType.includes('text/html') ? 'no-cache' : 'public, max-age=3600'
+    };
+    
+    // Add Content-Encoding header for compressed files
+    if (contentEncoding) {
+      responseHeaders['Content-Encoding'] = contentEncoding;
+    }
+    
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Cache-Control': contentType.includes('text/html') ? 'no-cache' : 'public, max-age=3600'
-      },
+      headers: responseHeaders,
       body: content,
       isBase64Encoded: isBase64
     };
