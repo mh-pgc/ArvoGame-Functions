@@ -53,8 +53,36 @@ exports.handler = async (event, context) => {
     }
     
     // Get content and content type
-    let content = await response.text();
-    const contentType = response.headers.get('content-type') || 'text/html';
+    let contentType = response.headers.get('content-type');
+    
+    // If no content type from Azure, determine it from file extension
+    if (!contentType) {
+      if (filePath.endsWith('.html')) contentType = 'text/html';
+      else if (filePath.endsWith('.js')) contentType = 'application/javascript';
+      else if (filePath.endsWith('.css')) contentType = 'text/css';
+      else if (filePath.endsWith('.png')) contentType = 'image/png';
+      else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
+      else if (filePath.endsWith('.ico')) contentType = 'image/x-icon';
+      else if (filePath.endsWith('.wasm')) contentType = 'application/wasm';
+      else if (filePath.endsWith('.br')) contentType = 'application/octet-stream';
+      else if (filePath.endsWith('.data')) contentType = 'application/octet-stream';
+      else if (filePath.endsWith('.ttf')) contentType = 'font/ttf';
+      else contentType = 'application/octet-stream';
+    }
+    
+    // Handle binary files differently from text files
+    let content;
+    let isBase64 = false;
+    
+    if (contentType.includes('text/') || contentType.includes('application/javascript')) {
+      // Handle text files
+      content = await response.text();
+    } else {
+      // Handle binary files (images, wasm, compressed files, etc.)
+      const buffer = await response.arrayBuffer();
+      content = Buffer.from(buffer).toString('base64');
+      isBase64 = true;
+    }
     
     // If it's HTML, modify it to route Unity assets through proxy
     if (contentType.includes('text/html')) {
@@ -94,7 +122,8 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Cache-Control': contentType.includes('text/html') ? 'no-cache' : 'public, max-age=3600'
       },
-      body: content
+      body: content,
+      isBase64Encoded: isBase64
     };
     
   } catch (error) {
