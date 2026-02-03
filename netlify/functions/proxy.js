@@ -81,11 +81,20 @@ exports.handler = async (event, context) => {
     let content;
     let isBase64 = false;
     
-    if (contentType.includes('text/') || (contentType.includes('application/javascript') && !filePath.endsWith('.br'))) {
+    // For compressed .br files, we need to pass them through as-is without decompression
+    if (filePath.endsWith('.br')) {
+      // Pass compressed files as binary without setting Content-Encoding
+      // Let the browser handle decompression based on file extension
+      const buffer = await response.arrayBuffer();
+      content = Buffer.from(buffer).toString('base64');
+      isBase64 = true;
+      // Don't set contentEncoding for .br files - let browser handle it
+      contentEncoding = null;
+    } else if (contentType.includes('text/') || (contentType.includes('application/javascript') && !filePath.endsWith('.br'))) {
       // Handle text files (but not compressed JS files)
       content = await response.text();
     } else {
-      // Handle binary files (images, wasm, compressed files, etc.)
+      // Handle other binary files (images, wasm, etc.)
       const buffer = await response.arrayBuffer();
       content = Buffer.from(buffer).toString('base64');
       isBase64 = true;
@@ -108,6 +117,15 @@ exports.handler = async (event, context) => {
         
         // Replace the initial favicon and stylesheet URLs in HTML head
         .replace(/href="TemplateData\/([^"]+)"/g, `href="/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
+        .replace(/src="TemplateData\/([^"]+)"/g, `src="/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
+        
+        // Replace any remaining relative URLs that might not be caught
+        .replace(/(src|href)="([^"]+\.(png|jpg|jpeg|ico|ttf|woff|woff2))"/g, (match, attr, url, ext) => {
+          if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('#') || url.startsWith('/.netlify')) {
+            return match; // Don't modify absolute URLs, data URLs, or already proxied URLs
+          }
+          return `${attr}="/.netlify/functions/proxy?${dirPath}/${url}"`;
+        })
         
         // Replace the SAS key initialization to skip the async loading
         .replace(/initializeUnity\(\);/, 'startUnityLoading(); // Skip async key loading, proxy handles it')
