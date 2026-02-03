@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Simulation...</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+        
+        .arvo-theme .logo { background: rgba(0, 162, 160, 0.3); }
+        .punjab-theme .logo { background: rgba(45, 45, 113, 0.3); }
+        
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 300;
+        }
+        
+        .subtitle {
+            margin: 0 0 30px 0;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        .arvo-theme .loader { border-top-color: #00A2A0; }
+        .punjab-theme .loader { border-top-color: #2D2D71; }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress {
+            margin-top: 20px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .retry-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .retry-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="logo" id="logo">🎮</div>
+        <h1 id="title">Loading Simulation</h1>
+        <div class="subtitle" id="subtitle">Preparing your experience...</div>
+        <div class="loader" id="loader"></div>
+        <div class="progress" id="progress">Initializing...</div>
+        <div class="error" id="error">
+            <strong>Connection Error</strong><br>
+            Unable to load the simulation. Please check your connection.
+            <br><button class="retry-btn" onclick="retryLoad()">Retry</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            // Your Azure blob storage base URL (update this to match your structure)
+            baseUrl: 'https://arvoblobstorage.blob.core.windows.net/explore-by-pgc',
+            
+            // SAS key (update when it expires)
+            sasKey: 'si=Read-Access&sv=2022-11-02&sr=c&sig=%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D',
+            
+            // Default values
+            defaults: {
+                institution: 'Colleges',  // Can be 'Colleges' or 'Schools'
+                environment: 'Production', // Can be 'Production', 'Development', etc.
+                version: 'v0.0.1.7',      // Default version
+                appName: 'punjab'         // Default theme
+            }
+        };
+
+        // Get URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Parse and validate parameters
+        function parseParameters() {
+            const params = {
+                // Core parameters
+                gameID: getUrlParameter('gameID') || getUrlParameter('game') || '',
+                appName: getUrlParameter('appName') || getUrlParameter('app') || CONFIG.defaults.appName,
+                
+                // Optional parameters
+                dk: getUrlParameter('dk') || '', // Debug key
+                eb: getUrlParameter('eb') || '', // Enable bridging
+                
+                // Structure parameters (allow customization of URL structure)
+                institution: getUrlParameter('institution') || CONFIG.defaults.institution,
+                environment: getUrlParameter('environment') || CONFIG.defaults.environment,
+                version: getUrlParameter('version') || CONFIG.defaults.version,
+                
+                // Custom base URL override
+                baseUrl: getUrlParameter('baseUrl') || CONFIG.baseUrl
+            };
+            
+            return params;
+        }
+
+        // Build the target URL
+        function buildTargetUrl(params) {
+            const pathParts = [
+                params.baseUrl,
+                params.institution,
+                params.environment,
+                'WebGL/Build',
+                params.version,
+                'index.html'
+            ];
+            
+            return pathParts.join('/');
+        }
+
+        // Apply theme based on appName
+        function applyTheme(appName) {
+            const container = document.getElementById('container');
+            const logo = document.getElementById('logo');
+            
+            // Remove existing theme classes
+            container.classList.remove('arvo-theme', 'punjab-theme');
+            
+            if (appName === 'arvo') {
+                container.classList.add('arvo-theme');
+                logo.textContent = '🧪'; // Chemistry/science icon for arvo
+                document.getElementById('title').textContent = 'Loading Arvo Simulation';
+            } else if (appName === 'punjab') {
+                container.classList.add('punjab-theme');
+                logo.textContent = '📚'; // Education icon for punjab
+                document.getElementById('title').textContent = 'Loading Punjab Simulation';
+            } else {
+                // Custom app name
+                container.classList.add('punjab-theme'); // Default to punjab theme
+                logo.textContent = '🎯';
+                document.getElementById('title').textContent = `Loading ${appName.charAt(0).toUpperCase() + appName.slice(1)} Simulation`;
+            }
+        }
+
+        // Update progress text
+        function updateProgress(text) {
+            document.getElementById('progress').textContent = text;
+        }
+
+        // Show error
+        function showError() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+        }
+
+        // Retry function
+        function retryLoad() {
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            setTimeout(initializeLauncher, 1000);
+        }
+
+        // Store parameters in session storage
+        function storeParameters(params) {
+            // Store SAS key and all parameters
+            sessionStorage.setItem('saskey', CONFIG.sasKey);
+            sessionStorage.setItem('appName', params.appName);
+            sessionStorage.setItem('gameID', params.gameID);
+            sessionStorage.setItem('dk', params.dk);
+            sessionStorage.setItem('eb', params.eb);
+            
+            // Store additional metadata
+            sessionStorage.setItem('launcherParams', JSON.stringify(params));
+            
+            console.log('Stored parameters:', params);
+        }
+
+        // Test if target URL is accessible
+        async function testConnection(url) {
+            try {
+                const testUrl = url.replace('index.html', 'TemplateData/favicon.ico') + '?' + CONFIG.sasKey;
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                return false;
+            }
+        }
+
+        // Main initialization function
+        async function initializeLauncher() {
+            try {
+                updateProgress('Parsing parameters...');
+                const params = parseParameters();
+                
+                updateProgress('Applying theme...');
+                applyTheme(params.appName);
+                
+                // Update subtitle with game info
+                if (params.gameID) {
+                    document.getElementById('subtitle').textContent = `Loading: ${params.gameID}`;
+                }
+                
+                updateProgress('Building target URL...');
+                const targetUrl = buildTargetUrl(params);
+                
+                updateProgress('Testing connection...');
+                const isAccessible = await testConnection(targetUrl);
+                
+                if (!isAccessible) {
+                    console.warn('Connection test failed, but proceeding anyway...');
+                }
+                
+                updateProgress('Storing session data...');
+                storeParameters(params);
+                
+                updateProgress('Redirecting to simulation...');
+                
+                // Add a small delay for better UX
+                setTimeout(() => {
+                    console.log('Redirecting to:', targetUrl);
+                    window.location.href = targetUrl;
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Launcher error:', error);
+                showError();
+            }
+        }
+
+        // Start the launcher when page loads
+        window.addEventListener('load', initializeLauncher);
+
+        // Debug function (available in console)
+        window.debugLauncher = function() {
+            const params = parseParameters();
+            const targetUrl = buildTargetUrl(params);
+            console.log('Debug Info:');
+            console.log('Parameters:', params);
+            console.log('Target URL:', targetUrl);
+            console.log('Session Storage:', {
+                saskey: sessionStorage.getItem('saskey'),
+                appName: sessionStorage.getItem('appName'),
+                gameID: sessionStorage.getItem('gameID'),
+                dk: sessionStorage.getItem('dk'),
+                eb: sessionStorage.getItem('eb')
+            });
+        };
+    </script>
+</body>
+</html>
