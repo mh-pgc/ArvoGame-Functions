@@ -1,6 +1,6 @@
 # WebGL Game Launcher for Azure Blob Storage
 
-A clean, secure launcher for Unity WebGL games hosted on Azure Blob Storage with SAS key authentication. This launcher hides SAS keys from URLs and provides a professional loading experience.
+A clean, secure launcher for Unity WebGL games hosted on Azure Blob Storage with SAS key authentication. This launcher hides SAS keys from URLs and provides a professional loading experience with comprehensive parameter support.
 
 ## 🎯 Problem Solved
 
@@ -11,8 +11,19 @@ https://arvoblobstorage.blob.core.windows.net/explore-by-pgc/Colleges/Production
 
 **After:** Clean, shareable URLs
 ```
-https://yourusername.github.io/game-launcher/launcher.html?game=CHM11C10VIRTUALCHEMISTRYLAB&app=arvo
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=CHM11C10VIRTUALCHEMISTRYLAB&app=arvo
 ```
+
+## 🚀 Live Demo
+
+**Launcher URL:** https://mh-pgc.github.io/ArvoGame-Functions/launcher.html
+
+### Quick Examples:
+- **Default Game**: https://mh-pgc.github.io/ArvoGame-Functions/launcher.html
+- **Chemistry Lab**: https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=CHM11C10VIRTUALCHEMISTRYLAB&app=arvo
+- **Physics Lab**: https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=PHY12MECHANICS&app=punjab
+- **Schools Environment**: https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=MATHLAB&institution=Schools&app=arvo
+- **Development Version**: https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=TESTLAB&environment=Development&version=v1.2.0&dk=debug123
 
 ## 🚀 Features
 
@@ -23,6 +34,10 @@ https://yourusername.github.io/game-launcher/launcher.html?game=CHM11C10VIRTUALC
 - **Mobile Friendly**: Responsive design with smooth animations
 - **Debug Support**: Built-in debugging tools for troubleshooting
 - **Session Storage**: Secure parameter passing to your game
+- **Multi-Environment**: Support for Production, Development, Staging
+- **Institution Support**: Colleges and Schools directory structures
+- **Version Control**: Support for multiple game versions
+- **Unity Integration**: Complete parameter passing to Unity engine
 
 ## 📁 File Structure
 
@@ -63,7 +78,7 @@ const CONFIG = {
 2. Upload `launcher.html` to the repository
 3. Go to repository Settings → Pages
 4. Enable GitHub Pages from main branch
-5. Your launcher will be available at: `https://yourusername.github.io/repository-name/launcher.html`
+5. Your launcher will be available at: `https://mh-pgc.github.io/ArvoGame-Functions/launcher.html`
 
 ### Step 3: Update Your Game (Optional)
 
@@ -82,25 +97,46 @@ var bridgeMode = sessionStorage.getItem('eb') || getUrlParameter("eb");
 
 ## 📖 Usage Examples
 
-### Basic Game Launch
+### Basic Game Launch (No Game ID)
 ```
-https://yourusername.github.io/game-launcher/launcher.html?game=CHM11C10VIRTUALCHEMISTRYLAB&app=arvo
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html
+```
+**Result:** Opens the default game interface without loading a specific simulation
+
+### Specific Game with Theme
+```
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=CHM11C10VIRTUALCHEMISTRYLAB&app=arvo
 ```
 
 ### Multiple Parameters
 ```
-https://yourusername.github.io/game-launcher/launcher.html?game=PHY12MECHANICS&app=punjab&dk=debug123&eb=enabled
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=PHY12MECHANICS&app=punjab&institution=Schools&dk=debug123&eb=enabled
 ```
 
-### Custom Institution/Environment
+### Custom Institution/Environment/Version
 ```
-https://yourusername.github.io/game-launcher/launcher.html?game=MATHLAB&institution=Schools&environment=Development&version=v1.2.0
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=MATHLAB&institution=Schools&environment=Development&version=v1.2.0&dk=dev456
 ```
 
-### No Parameters (Uses Defaults)
+### Debug Mode
 ```
-https://yourusername.github.io/game-launcher/launcher.html
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=TESTLAB&dk=debug123&eb=enabled
 ```
+
+## 📋 Complete Parameter Reference
+
+| Parameter | Aliases | Description | Example | Default |
+|-----------|---------|-------------|---------|---------|
+| `gameID` | `game` | Simulation identifier | `CHM11C10VIRTUALCHEMISTRYLAB` | _(none - opens default)_ |
+| `appName` | `app` | Theme/app type | `arvo`, `punjab`, `custom` | `punjab` |
+| `dk` | - | Debug key for Unity | `debug123`, `dev456` | _(none)_ |
+| `eb` | - | Enable bridging mode | `enabled`, `true` | _(none)_ |
+| `institution` | - | Institution type | `Colleges`, `Schools` | `Colleges` |
+| `environment` | - | Environment | `Production`, `Development`, `Staging` | `Production` |
+| `version` | - | Game version | `v0.0.1.7`, `v1.2.0` | `v0.0.1.7` |
+
+**📖 For detailed usage instructions, see [USAGE.md](USAGE.md)**  
+**🔧 For parameter testing, see [PARAMETER-VERIFICATION.md](PARAMETER-VERIFICATION.md)**
 
 ## 🔧 Supported Parameters
 
@@ -214,6 +250,46 @@ For issues or questions:
 2. Use `debugLauncher()` console function
 3. Verify your Azure blob storage configuration
 4. Ensure SAS key has proper permissions (Read access to container)
+
+## 🎯 Key Features
+
+### No Game ID Required
+```
+https://mh-pgc.github.io/ArvoGame-Functions/launcher.html
+```
+Opens the default game interface without loading a specific simulation.
+
+### Clean URLs with Hidden SAS Keys
+**Share this:** `https://mh-pgc.github.io/ArvoGame-Functions/launcher.html?game=CHEMISTRY&app=arvo`  
+**Users see:** `https://arvoblobstorage.blob.core.windows.net/.../index.html` (clean, no SAS key)  
+**Assets load with:** SAS key authentication (hidden in browser memory)
+
+### Professional Themes
+- **Arvo**: Teal colors, chemistry icon, science branding
+- **Punjab**: Blue colors, education icon, learning branding  
+- **Custom**: Dynamic branding based on app name
+
+### Flexible Configuration
+- Support for different institutions (Colleges/Schools)
+- Multiple environments (Production/Development/Staging)
+- Version-specific deployments
+- Debug and bridging modes for Unity integration
+- Complete parameter passing to Unity engine
+
+### Unity Integration
+- **Debug Keys (DK)**: Sent to Unity for development/testing modes
+- **App Names**: Sent to Unity for theme/branding configuration
+- **Game IDs**: Sent to Unity for specific simulation loading
+- **Bridging Mode (EB)**: Enables special Unity communication modes
+
+## 🔧 Debugging & Testing
+
+### Debug Functions
+- **Launcher**: `debugLauncher()` - Shows parameter parsing and URL generation
+- **Game**: `debugGameParams()` - Shows complete parameter flow and Unity config
+
+### Testing Guide
+See [PARAMETER-VERIFICATION.md](PARAMETER-VERIFICATION.md) for comprehensive testing scenarios and verification steps.
 
 ---
 

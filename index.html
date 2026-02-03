@@ -115,7 +115,7 @@
         <div class="error" id="error">
             <strong>Connection Error</strong><br>
             Unable to load the simulation. Please check your connection.
-            <br><button class="retry-btn" onclick="retryLoad()">Retry</button>
+            <br><button type="button" class="retry-btn" onclick="retryLoad()">Retry</button>
         </div>
     </div>
 
@@ -230,10 +230,17 @@
             // Store SAS key in its original URL-encoded format (without ? prefix)
             const cleanSasKey = CONFIG.sasKey.startsWith('?') ? CONFIG.sasKey.substring(1) : CONFIG.sasKey;
             sessionStorage.setItem('saskey', cleanSasKey);
+            
+            // Store all game parameters
             sessionStorage.setItem('appName', params.appName);
             sessionStorage.setItem('gameID', params.gameID);
             sessionStorage.setItem('dk', params.dk);
             sessionStorage.setItem('eb', params.eb);
+            
+            // Store URL structure parameters
+            sessionStorage.setItem('institution', params.institution);
+            sessionStorage.setItem('environment', params.environment);
+            sessionStorage.setItem('version', params.version);
             
             // Store additional metadata
             sessionStorage.setItem('launcherParams', JSON.stringify(params));
@@ -315,7 +322,10 @@
                 appName: sessionStorage.getItem('appName'),
                 gameID: sessionStorage.getItem('gameID'),
                 dk: sessionStorage.getItem('dk'),
-                eb: sessionStorage.getItem('eb')
+                eb: sessionStorage.getItem('eb'),
+                institution: sessionStorage.getItem('institution'),
+                environment: sessionStorage.getItem('environment'),
+                version: sessionStorage.getItem('version')
             });
         };
     </script>
