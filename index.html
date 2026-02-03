@@ -166,7 +166,7 @@
             return params;
         }
 
-        // Build the target URL (clean, without SAS key)
+        // Build the target URL with SAS key (needed for initial access)
         function buildTargetUrl(params) {
             const pathParts = [
                 params.baseUrl,
@@ -177,7 +177,10 @@
                 'index.html'
             ];
             
-            return pathParts.join('/');
+            const baseUrl = pathParts.join('/');
+            
+            // Add SAS key for initial access, but we'll clean the URL afterward
+            return baseUrl + CONFIG.sasKey;
         }
 
         // Apply theme based on appName
