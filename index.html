@@ -133,7 +133,8 @@
                 institution: 'Colleges',  // Can be 'Colleges' or 'Schools'
                 environment: 'Production', // Can be 'Production', 'Development', etc.
                 version: 'v0.0.1.7',      // Default version
-                appName: 'punjab'         // Default theme
+                appName: 'arvo',          // Default to arvo theme
+                debugKey: '88B1B5626419252AE9771F885C786'      // Default debug key
             }
         };
 
@@ -146,12 +147,12 @@
         // Parse and validate parameters
         function parseParameters() {
             const params = {
-                // Core parameters
+                // Core parameters - default to arvo if no app specified
                 gameID: getUrlParameter('gameID') || getUrlParameter('game') || '',
                 appName: getUrlParameter('appName') || getUrlParameter('app') || CONFIG.defaults.appName,
                 
-                // Optional parameters
-                dk: getUrlParameter('dk') || '', // Debug key
+                // Optional parameters - include default debug key
+                dk: getUrlParameter('dk') || CONFIG.defaults.debugKey, // Default debug key
                 eb: getUrlParameter('eb') || '', // Enable bridging
                 
                 // Structure parameters (allow customization of URL structure)
@@ -166,7 +167,7 @@
             return params;
         }
 
-        // Build the target URL with SAS key (needed for initial access)
+        // Build the target URL with SAS key and all parameters
         function buildTargetUrl(params) {
             const pathParts = [
                 params.baseUrl,
@@ -179,8 +180,25 @@
             
             const baseUrl = pathParts.join('/');
             
-            // Add SAS key for initial access, but we'll clean the URL afterward
-            return baseUrl + CONFIG.sasKey;
+            // Build parameter string including SAS key and debug key
+            const urlParams = new URLSearchParams();
+            
+            // Add game parameters
+            if (params.gameID) urlParams.set('game', params.gameID);
+            if (params.appName) urlParams.set('app', params.appName);
+            if (params.dk) urlParams.set('dk', params.dk);
+            if (params.eb) urlParams.set('eb', params.eb);
+            if (params.institution !== CONFIG.defaults.institution) urlParams.set('institution', params.institution);
+            if (params.environment !== CONFIG.defaults.environment) urlParams.set('environment', params.environment);
+            if (params.version !== CONFIG.defaults.version) urlParams.set('version', params.version);
+            
+            // Add SAS key parameters
+            const sasParams = new URLSearchParams(CONFIG.sasKey.substring(1)); // Remove ? from sasKey
+            sasParams.forEach((value, key) => {
+                urlParams.set(key, value);
+            });
+            
+            return baseUrl + '?' + urlParams.toString();
         }
 
         // Apply theme based on appName
@@ -225,8 +243,8 @@
             setTimeout(initializeLauncher, 1000);
         }
 
-        // Store parameters in session storage
-        function storeParameters(params) {
+        // Store parameters in session storage and redirect
+        function storeParametersAndRedirect(params, targetUrl) {
             // Store SAS key in its original URL-encoded format (without ? prefix)
             const cleanSasKey = CONFIG.sasKey.startsWith('?') ? CONFIG.sasKey.substring(1) : CONFIG.sasKey;
             sessionStorage.setItem('saskey', cleanSasKey);
@@ -242,11 +260,16 @@
             sessionStorage.setItem('environment', params.environment);
             sessionStorage.setItem('version', params.version);
             
-            // Store additional metadata
+            // Store launcher URL for back navigation
+            sessionStorage.setItem('launcherUrl', window.location.href);
             sessionStorage.setItem('launcherParams', JSON.stringify(params));
             
             console.log('Stored parameters:', params);
             console.log('Stored SAS key (URL encoded):', cleanSasKey);
+            console.log('Redirecting to:', targetUrl);
+            
+            // Direct redirect - most optimized approach
+            window.location.replace(targetUrl);
         }
 
         // Test if target URL is accessible (with SAS key)
@@ -276,35 +299,31 @@
                 // Update subtitle with game info
                 if (params.gameID) {
                     document.getElementById('subtitle').textContent = `Loading: ${params.gameID}`;
+                } else {
+                    document.getElementById('subtitle').textContent = `Default Arvo Experience`;
                 }
                 
                 updateProgress('Building target URL...');
                 const targetUrl = buildTargetUrl(params);
                 
-                updateProgress('Testing connection...');
-                // Skip connection test for private storage accounts
-                console.log('Skipping connection test for private Azure storage');
-                const isAccessible = true;
+                updateProgress('Preparing redirect...');
                 
-                if (!isAccessible) {
-                    console.log('Connection test skipped for private storage account');
-                }
-                
-                updateProgress('Storing session data...');
-                storeParameters(params);
-                
-                updateProgress('Redirecting to simulation...');
-                
-                // Add a small delay for better UX
+                // Add a small delay for better UX, then redirect
                 setTimeout(() => {
-                    console.log('Redirecting to:', targetUrl);
-                    window.location.href = targetUrl;
+                    storeParametersAndRedirect(params, targetUrl);
                 }, 1500);
                 
             } catch (error) {
                 console.error('Launcher error:', error);
                 showError();
             }
+        }
+
+        // Retry function
+        function retryLoad() {
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            setTimeout(initializeLauncher, 1000);
         }
 
         // Start the launcher when page loads
@@ -318,10 +337,10 @@
             console.log('Parameters:', params);
             console.log('Target URL:', targetUrl);
             console.log('Session Storage:', {
-                saskey: sessionStorage.getItem('saskey'),
+                saskey: sessionStorage.getItem('saskey') ? '[HIDDEN]' : null,
                 appName: sessionStorage.getItem('appName'),
                 gameID: sessionStorage.getItem('gameID'),
-                dk: sessionStorage.getItem('dk'),
+                dk: sessionStorage.getItem('dk') ? '[HIDDEN]' : null,
                 eb: sessionStorage.getItem('eb'),
                 institution: sessionStorage.getItem('institution'),
                 environment: sessionStorage.getItem('environment'),
