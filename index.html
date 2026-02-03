@@ -125,7 +125,7 @@
             // Your Azure blob storage base URL (update this to match your structure)
             baseUrl: 'https://arvoblobstorage.blob.core.windows.net/explore-by-pgc',
             
-            // SAS key (update when it expires) - use exact format from your working URL
+            // SAS key (update when it expires) - keep URL encoded format
             sasKey: '?si=Read-Access&sv=2022-11-02&sr=c&sig=%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D',
             
             // Default values
@@ -227,7 +227,7 @@
 
         // Store parameters in session storage
         function storeParameters(params) {
-            // Store SAS key without the ? prefix (will be added when used)
+            // Store SAS key in its original URL-encoded format (without ? prefix)
             const cleanSasKey = CONFIG.sasKey.startsWith('?') ? CONFIG.sasKey.substring(1) : CONFIG.sasKey;
             sessionStorage.setItem('saskey', cleanSasKey);
             sessionStorage.setItem('appName', params.appName);
@@ -239,7 +239,7 @@
             sessionStorage.setItem('launcherParams', JSON.stringify(params));
             
             console.log('Stored parameters:', params);
-            console.log('Stored SAS key:', cleanSasKey);
+            console.log('Stored SAS key (URL encoded):', cleanSasKey);
         }
 
         // Test if target URL is accessible (with SAS key)
