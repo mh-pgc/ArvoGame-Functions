@@ -20,23 +20,40 @@ exports.handler = async (event, context) => {
     const filePath = parts[0]; // First part is the file path
     const additionalParams = parts.slice(1); // Rest are additional parameters
     
-    // Your Azure base URL and SAS key
+    // Extract SAS key from parameters or use environment variable
+    let sasKey = process.env.SAS_KEY;
+    let cleanAdditionalParams = [];
+    
+    // Check if SAS key is provided in URL parameters
+    for (const param of additionalParams) {
+      if (param.startsWith('sasKey=')) {
+        sasKey = decodeURIComponent(param.substring(7)); // Extract SAS key
+        // Don't include sasKey in additional params
+      } else {
+        cleanAdditionalParams.push(param);
+      }
+    }
+    
+    // Your Azure base URL
     const azureBaseUrl = 'https://arvoblobstorage.blob.core.windows.net/explore-by-pgc';
-    const sasKey = process.env.SAS_KEY;
     
     if (!sasKey) {
+      console.error('SAS_KEY environment variable not configured');
       return {
         statusCode: 500,
         body: 'SAS_KEY environment variable not configured'
       };
     }
     
-    // Build the full Azure URL
-    let fullUrl = `${azureBaseUrl}/${filePath}?${sasKey}`;
+    // Ensure SAS key doesn't start with ? if we're adding it after ?
+    const cleanSasKey = sasKey.startsWith('?') ? sasKey.substring(1) : sasKey;
     
-    // Add additional parameters if they exist
-    if (additionalParams.length > 0) {
-      fullUrl += '&' + additionalParams.join('&');
+    // Build the full Azure URL
+    let fullUrl = `${azureBaseUrl}/${filePath}?${cleanSasKey}`;
+    
+    // Add additional parameters if they exist (excluding sasKey)
+    if (cleanAdditionalParams.length > 0) {
+      fullUrl += '&' + cleanAdditionalParams.join('&');
     }
     
     console.log(`Proxying path: ${filePath}`);
@@ -125,22 +142,33 @@ exports.handler = async (event, context) => {
       // Get the directory path for relative URLs
       const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
       
-      // Replace Unity asset URLs to use proxy, but keep the Unity loading logic intact
+      // Replace Unity asset URLs to use proxy - be more aggressive
       content = content
         // Replace Build/ URLs in JavaScript (with and without sasKey)
         .replace(/buildUrl \+ "\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
         .replace(/buildUrl \+ "\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/Build/$1"`)
         
-        // Replace TemplateData/ URLs (with and without sasKey)
+        // Replace TemplateData/ URLs (with and without sasKey) - more comprehensive
         .replace(/"TemplateData\/([^"]+)" \+ sasKey/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         .replace(/"TemplateData\/([^"]+)"/g, `"/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
+        .replace(/TemplateData\/([^"'\s]+)/g, `/.netlify/functions/proxy?${dirPath}/TemplateData/$1`)
         
         // Replace the initial favicon and stylesheet URLs in HTML head
         .replace(/href="TemplateData\/([^"]+)"/g, `href="/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         .replace(/src="TemplateData\/([^"]+)"/g, `src="/.netlify/functions/proxy?${dirPath}/TemplateData/$1"`)
         
-        // Replace any remaining relative URLs that might not be caught
-        .replace(/(src|href)="([^"]+\.(png|jpg|jpeg|ico|ttf|woff|woff2))"/g, (match, attr, url, ext) => {
+        // Replace any remaining asset URLs that might be constructed dynamically
+        .replace(/url\('TemplateData\/([^']+)'\)/g, `url('/.netlify/functions/proxy?${dirPath}/TemplateData/$1')`)
+        .replace(/url\("TemplateData\/([^"]+)"\)/g, `url("/.netlify/functions/proxy?${dirPath}/TemplateData/$1")`)
+        
+        // Replace background image URLs in CSS/JS
+        .replace(/background:\s*url\(([^)]*TemplateData\/[^)]+)\)/g, (match, url) => {
+          const cleanUrl = url.replace(/['"]/g, '');
+          return `background: url('/.netlify/functions/proxy?${dirPath}/${cleanUrl}')`;
+        })
+        
+        // Replace any direct asset references
+        .replace(/(src|href)="([^"]+\.(png|jpg|jpeg|ico|ttf|woff|woff2|css))"/g, (match, attr, url, ext) => {
           if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('#') || url.startsWith('/.netlify')) {
             return match; // Don't modify absolute URLs, data URLs, or already proxied URLs
           }
@@ -155,7 +183,10 @@ exports.handler = async (event, context) => {
         
         // Replace the SAS key fetching with a simple assignment
         .replace(/const keysLoaded = await loadKeys\(\);/, 'const keysLoaded = true; // Proxy handles keys')
-        .replace(/if \(keysLoaded\) \{[\s\S]*?\} else \{[\s\S]*?\}[\s\S]*?startUnityLoading\(\);/, 'startUnityLoading(); // Proxy handles everything');
+        .replace(/if \(keysLoaded\) \{[\s\S]*?\} else \{[\s\S]*?\}[\s\S]*?startUnityLoading\(\);/, 'startUnityLoading(); // Proxy handles everything')
+        
+        // Remove any remaining SAS key concatenations
+        .replace(/\+ sasKey/g, '// SAS key handled by proxy');
     }
     
     // Build response headers
