@@ -40,15 +40,35 @@ exports.handler = async (event, context) => {
     }
     
     console.log(`Proxying path: ${filePath}`);
-    console.log(`Full Azure URL: ${fullUrl}`);
+    console.log(`Constructed URL: ${fullUrl}`);
     
-    // Fetch the content from Azure
-    const response = await fetch(fullUrl);
+    // Fetch the content from Azure with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let response;
+    try {
+      response = await fetch(fullUrl, { 
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Netlify-Proxy/1.0'
+        }
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error(`Fetch error for ${filePath}:`, error.message);
+      return {
+        statusCode: 502,
+        body: `Proxy fetch error: ${error.message} - Path: ${filePath}`
+      };
+    }
     
     if (!response.ok) {
+      console.error(`Azure fetch failed: ${response.status} ${response.statusText} for ${fullUrl}`);
       return {
         statusCode: response.status,
-        body: `Error fetching content: ${response.statusText} - ${fullUrl}`
+        body: `Error fetching content: ${response.statusText} - URL: ${fullUrl}`
       };
     }
     
