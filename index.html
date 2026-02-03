@@ -125,8 +125,8 @@
             // Your Azure blob storage base URL (update this to match your structure)
             baseUrl: 'https://arvoblobstorage.blob.core.windows.net/explore-by-pgc',
             
-            // SAS key (update when it expires)
-            sasKey: 'si=Read-Access&sv=2022-11-02&sr=c&sig=%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D',
+            // SAS key (update when it expires) - use exact format from your working URL
+            sasKey: '?si=Read-Access&sv=2022-11-02&sr=c&sig=%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D',
             
             // Default values
             defaults: {
@@ -166,7 +166,7 @@
             return params;
         }
 
-        // Build the target URL with SAS key included
+        // Build the target URL (clean, without SAS key)
         function buildTargetUrl(params) {
             const pathParts = [
                 params.baseUrl,
@@ -177,22 +177,7 @@
                 'index.html'
             ];
             
-            const baseUrl = pathParts.join('/');
-            
-            // Add SAS key and other parameters to the URL
-            const urlParams = new URLSearchParams();
-            urlParams.set('si', 'Read-Access');
-            urlParams.set('sv', '2022-11-02');
-            urlParams.set('sr', 'c');
-            urlParams.set('sig', '%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D');
-            
-            // Add game parameters
-            if (params.appName) urlParams.set('appName', params.appName);
-            if (params.gameID) urlParams.set('gameID', params.gameID);
-            if (params.dk) urlParams.set('dk', params.dk);
-            if (params.eb) urlParams.set('eb', params.eb);
-            
-            return baseUrl + '?' + urlParams.toString();
+            return pathParts.join('/');
         }
 
         // Apply theme based on appName
@@ -239,8 +224,9 @@
 
         // Store parameters in session storage
         function storeParameters(params) {
-            // Store SAS key and all parameters
-            sessionStorage.setItem('saskey', CONFIG.sasKey);
+            // Store SAS key without the ? prefix (will be added when used)
+            const cleanSasKey = CONFIG.sasKey.startsWith('?') ? CONFIG.sasKey.substring(1) : CONFIG.sasKey;
+            sessionStorage.setItem('saskey', cleanSasKey);
             sessionStorage.setItem('appName', params.appName);
             sessionStorage.setItem('gameID', params.gameID);
             sessionStorage.setItem('dk', params.dk);
@@ -250,6 +236,7 @@
             sessionStorage.setItem('launcherParams', JSON.stringify(params));
             
             console.log('Stored parameters:', params);
+            console.log('Stored SAS key:', cleanSasKey);
         }
 
         // Test if target URL is accessible (with SAS key)
@@ -294,8 +281,7 @@
                 }
                 
                 updateProgress('Storing session data...');
-                // Don't store parameters in session storage since we're including them in URL
-                // This keeps the original approach working
+                storeParameters(params);
                 
                 updateProgress('Redirecting to simulation...');
                 
