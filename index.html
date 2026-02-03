@@ -166,7 +166,7 @@
             return params;
         }
 
-        // Build the target URL
+        // Build the target URL with SAS key included
         function buildTargetUrl(params) {
             const pathParts = [
                 params.baseUrl,
@@ -177,7 +177,22 @@
                 'index.html'
             ];
             
-            return pathParts.join('/');
+            const baseUrl = pathParts.join('/');
+            
+            // Add SAS key and other parameters to the URL
+            const urlParams = new URLSearchParams();
+            urlParams.set('si', 'Read-Access');
+            urlParams.set('sv', '2022-11-02');
+            urlParams.set('sr', 'c');
+            urlParams.set('sig', '%2BHJy%2BOHUGQAYuwVheu%2FRzWeLQKa9SX7rWLZVbjkPY6M%3D');
+            
+            // Add game parameters
+            if (params.appName) urlParams.set('appName', params.appName);
+            if (params.gameID) urlParams.set('gameID', params.gameID);
+            if (params.dk) urlParams.set('dk', params.dk);
+            if (params.eb) urlParams.set('eb', params.eb);
+            
+            return baseUrl + '?' + urlParams.toString();
         }
 
         // Apply theme based on appName
@@ -271,7 +286,6 @@
                 
                 updateProgress('Testing connection...');
                 // Skip connection test for private storage accounts
-                // The test will always fail due to PublicAccessNotPermitted
                 console.log('Skipping connection test for private Azure storage');
                 const isAccessible = true;
                 
@@ -280,7 +294,8 @@
                 }
                 
                 updateProgress('Storing session data...');
-                storeParameters(params);
+                // Don't store parameters in session storage since we're including them in URL
+                // This keeps the original approach working
                 
                 updateProgress('Redirecting to simulation...');
                 
